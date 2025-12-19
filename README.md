@@ -4,10 +4,10 @@ A Python package for processing and cleaning segmentation images. This package p
 
 ## Features
 
-- Maps noisy RGB segmentation masks to RGB and integer masks via various methods:
-  - Nearest colour mapping
-  - Pixelwise neural network-based mapping
-  - Small CNN-based mapping (planned)
+- **Palette-based Cleaning**: Clean noisy segmentation images by mapping pixels to the nearest colors in a predefined palette, with optional morphological operations to refine boundaries.
+- **Neural Network Refinement**: Use a trained pixelwise classifier to refine segmentation masks using PyTorch Lightning.
+- **Command-Line Interface**: Unified CLI for cleaning with method selection, plus separate training command.
+- **Programmatic API**: Direct access to cleaning and training functions for integration into other workflows.
 
 ## Installation
 
@@ -85,17 +85,23 @@ Note that one label image may have multiple corresponding noisy masks. Labels ar
 You can also use the package programmatically:
 
 ```python
-from rgb_to_segmentation import clean, nn, train
+import numpy as np
+from rgb_to_segmentation import clean, nn, train, utils
 
 # Palette cleaning
-clean.clean_segmentation(input_dir="/path/to/input", output_dir="/path/to/output", colours="0,0,0;255,0,0;0,255,0")
+colours = utils.parse_colours_from_string("0,0,0;255,0,0;0,255,0")
+palette = np.asarray(colours, dtype=np.uint8)
+clean.clean_segmentation(input_dir="/path/to/input", output_dir="/path/to/output", palette=palette)
 
 # NN inference
-colour_map = {0: (0,0,0), 1: (255,0,0), 2: (0,255,0)}
+colours = utils.parse_colours_from_string("0,0,0;255,0,0;0,255,0")
+colour_map = {i: rgb for i, rgb in enumerate(colours)}
 nn.run_inference(input_dir="/path/to/input", output_dir="/path/to/output", model_path="/path/to/model.ckpt", colour_map=colour_map)
 
 # Train model
-train.train_model(image_dir="/path/to/images", label_dir="/path/to/labels", output_dir="/path/to/output", colour_map_str="0,0,0;255,0,0;0,255,0")
+colours = utils.parse_colours_from_string("0,0,0;255,0,0;0,255,0")
+colour_map = {i: rgb for i, rgb in enumerate(colours)}
+train.train_model(image_dir="/path/to/images", label_dir="/path/to/labels", output_dir="/path/to/output", colour_map=colour_map)
 ```
 
 ## Contributing

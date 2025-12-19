@@ -6,32 +6,15 @@ import numpy as np
 from PIL import Image
 from scipy import ndimage
 
+from . import utils
+
 
 def parse_palette_from_string(colours_str: str) -> np.ndarray:
-    parts = [p.strip() for p in colours_str.split(";") if p.strip()]
-    pal = []
-    for p in parts:
-        rgb = tuple(int(x) for x in p.split(","))
-        if len(rgb) != 3:
-            raise ValueError(f"Invalid colour triple: {p}")
-        pal.append(rgb)
-    return np.asarray(pal, dtype=np.uint8)
+    return np.asarray(utils.parse_colours_from_string(colours_str), dtype=np.uint8)
 
 
 def parse_palette_from_file(path: str) -> np.ndarray:
-    pal = []
-    with open(path, "r") as f:
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith("#"):
-                continue
-            rgb = tuple(int(x) for x in line.split(","))
-            if len(rgb) != 3:
-                raise ValueError(f"Invalid colour triple in file {path}: {line}")
-            pal.append(rgb)
-    if not pal:
-        raise ValueError(f"No colours found in file: {path}")
-    return np.asarray(pal, dtype=np.uint8)
+    return np.asarray(utils.parse_colours_from_file(path), dtype=np.uint8)
 
 
 def nearest_palette_image(image_array: np.ndarray, palette: np.ndarray) -> np.ndarray:
@@ -159,7 +142,7 @@ def process_directory(
             process_file(in_path, out_path, palette, kernel_size)
 
 
-def clean_segmentation(input_dir: str, output_dir: str = None, inplace: bool = False, colours: str = None, colours_file: str = None, exts: str = ".png,.jpg,.jpeg,.tiff,.bmp,.gif", name_filter: str = "", morph_kernel_size: int = 3):
+def clean_segmentation(input_dir: str, output_dir: str = None, inplace: bool = False, palette: np.ndarray = None, exts: str = ".png,.jpg,.jpeg,.tiff,.bmp,.gif", name_filter: str = "", morph_kernel_size: int = 3):
     """
     Clean segmentation images using palette-based color mapping.
 
@@ -167,8 +150,7 @@ def clean_segmentation(input_dir: str, output_dir: str = None, inplace: bool = F
         input_dir (str): Path to input directory containing segmentation images.
         output_dir (str, optional): Directory where cleaned images will be written. Required if not inplace.
         inplace (bool): Overwrite input images in place.
-        colours (str, optional): Semicolon-separated list of RGB triples.
-        colours_file (str, optional): Path to a file listing RGB triples.
+        palette (np.ndarray): Array of RGB triples (K, 3) uint8.
         exts (str): Comma-separated list of allowed image extensions.
         name_filter (str): Only process files whose name contains this substring.
         morph_kernel_size (int): Size of morphological kernel for boundary cleaning.
@@ -176,12 +158,8 @@ def clean_segmentation(input_dir: str, output_dir: str = None, inplace: bool = F
     if not inplace and output_dir is None:
         raise ValueError("Either output_dir must be provided or inplace must be True")
 
-    if colours_file:
-        palette = parse_palette_from_file(colours_file)
-    elif colours:
-        palette = parse_palette_from_string(colours)
-    else:
-        raise ValueError("Either colours or colours_file must be provided")
+    if palette is None:
+        raise ValueError("palette must be provided")
 
     exts_list = [e if e.startswith(".") else "." + e for e in exts.split(",")]
 
