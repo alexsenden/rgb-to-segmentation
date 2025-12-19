@@ -1,4 +1,4 @@
-name: Publish latest version of captioned-image-dataset-loader to PyPI
+name: Publish latest version of rgb-to-segmentation to PyPI
 
 on: push
 
@@ -39,7 +39,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/p/captioned-image-dataset-loader
+      url: https://pypi.org/p/rgb-to-segmentation
     permissions:
       id-token: write # IMPORTANT: mandatory for trusted publishing
     steps:
