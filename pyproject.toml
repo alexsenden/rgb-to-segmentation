@@ -1,0 +1,48 @@
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[project]
+name = "rgb-to-segmentation"
+description = "Tools for processing and cleaning segmentation images using palette mapping and neural networks"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.8"
+authors = [{ name = "Alex Senden" }]
+maintainers = [{ name = "Alex Senden" }]
+keywords = ["segmentation", "image-processing", "pytorch", "machine-learning"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Image Processing",
+]
+dependencies = [
+    "torch>=1.9.0",
+    "torchvision>=0.10.0",
+    "pytorch-lightning>=1.5.0",
+    "numpy>=1.21.0",
+    "scipy>=1.7.0",
+    "Pillow>=8.0.0",
+]
+
+# Version is automatically provided by hatch-vcs
+dynamic = ["version"]
+
+[project.scripts]
+segment-clean = "rgb_to_segmentation.cli:main_clean"
+segment-train = "rgb_to_segmentation.cli:main_train"
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.build.targets.sdist]
+include = ["rgb_to_segmentation/**", "README.md"]
+
+[tool.hatch.build.targets.wheel]
+include = ["rgb_to_segmentation/**"]
