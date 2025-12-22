@@ -34,13 +34,13 @@ Use the `segment-clean` command to clean segmentation images using various metho
 #### Palette-based cleaning:
 
 ```bash
-segment-clean --method palette --input_dir /path/to/input --output_dir /path/to/output --colour_map "0,0,0;255,0,0;0,255,0"
+segment-clean --method palette --input_dir /path/to/input --output_dir /path/to/output --colour_map "0,0,0;255,0,0;0,255,0" --output_type rgb
 ```
 
 #### Neural network-based cleaning:
 
 ```bash
-segment-clean --method nn --input_dir /path/to/input --output_dir /path/to/output --model_path /path/to/model.ckpt --colour_map "0,0,0;255,0,0;0,255,0"
+segment-clean --method nn --input_dir /path/to/input --output_dir /path/to/output --model_path /path/to/model.ckpt --colour_map "0,0,0;255,0,0;0,255,0" --output_type index
 ```
 
 You can also provide colours via file with `--colour_map_file /path/to/colours.txt` (one `r,g,b` per line). The CLI parses colours and constructs the palette/colour map internally, mirroring the Python API which accepts parsed structures (NumPy array for palette, dictionary for colour map).
@@ -53,6 +53,7 @@ Options:
 - `--inplace`: Overwrite input images in place
 - `--exts`: Comma-separated list of allowed image extensions
 - `--name_filter`: Only process files whose name contains this substring
+- `--output_type`: Output format ('rgb' or 'index')
 
 For palette method:
 - `--colour_map`: Semicolon-separated list of RGB triples
@@ -93,12 +94,12 @@ from rgb_to_segmentation import clean, nn, train, utils
 # Palette cleaning
 colours = utils.parse_colours_from_string("0,0,0;255,0,0;0,255,0")
 palette = np.asarray(colours, dtype=np.uint8)
-clean.clean_segmentation(input_dir="/path/to/input", output_dir="/path/to/output", palette=palette)
+clean.clean_segmentation(input_dir="/path/to/input", output_dir="/path/to/output", palette=palette, output_type="index")
 
 # NN inference
 colours = utils.parse_colours_from_string("0,0,0;255,0,0;0,255,0")
 colour_map = {i: rgb for i, rgb in enumerate(colours)}
-nn.run_inference(input_dir="/path/to/input", output_dir="/path/to/output", model_path="/path/to/model.ckpt", colour_map=colour_map)
+nn.run_inference(input_dir="/path/to/input", output_dir="/path/to/output", model_path="/path/to/model.ckpt", colour_map=colour_map, output_type="rgb")
 
 # Train model
 colours = utils.parse_colours_from_string("0,0,0;255,0,0;0,255,0")

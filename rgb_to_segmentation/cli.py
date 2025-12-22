@@ -47,6 +47,14 @@ def main_clean():
         help="Only process files whose name contains this substring.",
     )
 
+    parser.add_argument(
+        "--output_type",
+        type=str,
+        choices=["rgb", "index"],
+        default="rgb",
+        help="Output format: 'rgb' colour image or 'index' mask.",
+    )
+
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument(
         "--colour_map",
@@ -92,6 +100,7 @@ def main_clean():
             exts=args.exts,
             name_filter=args.name_filter,
             morph_kernel_size=args.morph_kernel_size,
+            output_type=args.output_type,
         )
 
     elif args.method == "nn":
@@ -107,6 +116,7 @@ def main_clean():
             colour_map=colour_map,
             exts=args.exts,
             name_filter=args.name_filter,
+            output_type=args.output_type,
         )
 
 

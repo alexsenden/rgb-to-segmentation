@@ -92,8 +92,25 @@ def apply_morphological_clean(image_array: np.ndarray, kernel_size: int) -> np.n
     return result
 
 
+def rgb_image_to_index(image_array: np.ndarray, palette: np.ndarray) -> np.ndarray:
+    """
+    Map each RGB pixel in `image_array` to the index of the matching colour in `palette`.
+    Assumes pixels take values from `palette`.
+    """
+    h, w, _ = image_array.shape
+    palette_list = [tuple(map(int, c)) for c in palette.tolist()]
+    lookup = {c: i for i, c in enumerate(palette_list)}
+    flat = image_array.reshape(-1, 3)
+    idx = np.array([lookup[tuple(map(int, px))] for px in flat], dtype=np.uint16)
+    return idx.reshape(h, w)
+
+
 def process_file(
-    input_path: str, output_path: str, palette: np.ndarray, kernel_size: int
+    input_path: str,
+    output_path: str,
+    palette: np.ndarray,
+    kernel_size: int,
+    output_type: str = "rgb",
 ):
     try:
         img = Image.open(input_path).convert("RGB")
@@ -114,7 +131,14 @@ def process_file(
 
     # Ensure output directory exists
     os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
-    Image.fromarray(cleaned).save(output_path)
+
+    if output_type == "rgb":
+        Image.fromarray(cleaned).save(output_path)
+    elif output_type == "index":
+        index_mask = rgb_image_to_index(cleaned, reduced_palette)
+        Image.fromarray(index_mask.astype(np.uint8), mode="L").save(output_path)
+    else:
+        raise ValueError("output_type must be 'rgb' or 'index'")
 
 
 def process_directory(
@@ -125,6 +149,7 @@ def process_directory(
     inplace: bool,
     name_filter: str = "",
     kernel_size: int = 0,
+    output_type: str = "rgb",
 ):
     exts = [e.lower().strip() for e in exts]
     for root, dirs, files in os.walk(input_dir):
@@ -140,7 +165,7 @@ def process_directory(
                 continue
             in_path = os.path.join(root, fname)
             out_path = os.path.join(out_root, fname)
-            process_file(in_path, out_path, palette, kernel_size)
+            process_file(in_path, out_path, palette, kernel_size, output_type)
 
 
 def clean_segmentation(
@@ -151,6 +176,7 @@ def clean_segmentation(
     exts: str = ".png,.jpg,.jpeg,.tiff,.bmp,.gif",
     name_filter: str = "",
     morph_kernel_size: int = 3,
+    output_type: str = "rgb",
 ):
     """
     Clean segmentation images using palette-based color mapping.
@@ -178,9 +204,16 @@ def clean_segmentation(
         os.makedirs(out_dir, exist_ok=True)
 
     print(
-        f"Processing: input={input_dir} -> output={out_dir}, colours={len(palette)}, morph_kernel={morph_kernel_size}"
+        f"Processing: input={input_dir} -> output={out_dir}, colours={len(palette)}, morph_kernel={morph_kernel_size}, output_type={output_type}"
     )
     process_directory(
-        input_dir, out_dir, palette, exts_list, inplace, name_filter, morph_kernel_size
+        input_dir,
+        out_dir,
+        palette,
+        exts_list,
+        inplace,
+        name_filter,
+        morph_kernel_size,
+        output_type,
     )
     print("Done.")

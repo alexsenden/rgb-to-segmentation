@@ -36,6 +36,7 @@ def run_inference(
     colour_map: dict = None,
     exts: str = ".png,.jpg,.jpeg,.tiff,.bmp,.gif",
     name_filter: str = "",
+    output_type: str = "rgb",
 ):
     """
     Run neural network inference on segmentation images.
@@ -66,7 +67,7 @@ def run_inference(
     if not inplace:
         os.makedirs(out_dir, exist_ok=True)
 
-    print(f"Running inference: input={input_dir} -> output={out_dir}")
+    print(f"Running inference: input={input_dir} -> output={out_dir}, output_type={output_type}")
 
     for root, dirs, files in os.walk(input_dir):
         rel = os.path.relpath(root, input_dir)
@@ -93,10 +94,15 @@ def run_inference(
                     probs = model(batch)
                     predicted = torch.argmax(probs, dim=-1).reshape(h, w)
 
-                rgb_image = map_int_to_rgb(predicted, colour_map)
-
-                pil_image = Image.fromarray(rgb_image.permute(1, 2, 0).numpy())
-                pil_image.save(out_path)
+                if output_type == "rgb":
+                    rgb_image = map_int_to_rgb(predicted, colour_map)
+                    pil_image = Image.fromarray(rgb_image.permute(1, 2, 0).numpy())
+                    pil_image.save(out_path)
+                elif output_type == "index":
+                    pil_image = Image.fromarray(predicted.cpu().numpy().astype("uint8"), mode="L")
+                    pil_image.save(out_path)
+                else:
+                    raise ValueError("output_type must be 'rgb' or 'index'")
 
             except Exception as e:
                 print(f"Skipping {in_path}: {e}")
