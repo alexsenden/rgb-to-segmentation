@@ -34,7 +34,7 @@ Use the `segment-clean` command to clean segmentation images using various metho
 #### Palette-based cleaning:
 
 ```bash
-segment-clean --method palette --input_dir /path/to/input --output_dir /path/to/output --colours "0,0,0;255,0,0;0,255,0"
+segment-clean --method palette --input_dir /path/to/input --output_dir /path/to/output --colour_map "0,0,0;255,0,0;0,255,0"
 ```
 
 #### Neural network-based cleaning:
@@ -42,6 +42,8 @@ segment-clean --method palette --input_dir /path/to/input --output_dir /path/to/
 ```bash
 segment-clean --method nn --input_dir /path/to/input --output_dir /path/to/output --model_path /path/to/model.ckpt --colour_map "0,0,0;255,0,0;0,255,0"
 ```
+
+You can also provide colours via file with `--colour_map_file /path/to/colours.txt` (one `r,g,b` per line). The CLI parses colours and constructs the palette/colour map internally, mirroring the Python API which accepts parsed structures (NumPy array for palette, dictionary for colour map).
 
 Options:
 
@@ -53,8 +55,8 @@ Options:
 - `--name_filter`: Only process files whose name contains this substring
 
 For palette method:
-- `--colours`: Semicolon-separated list of RGB triples
-- `--colours_file`: Path to a file listing RGB triples
+- `--colour_map`: Semicolon-separated list of RGB triples
+- `--colour_map_file`: Path to a file listing RGB triples
 - `--morph_kernel_size`: Size of morphological kernel for boundary cleaning
 
 For nn method:

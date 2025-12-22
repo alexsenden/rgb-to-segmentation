@@ -5,61 +5,15 @@ import torch
 from PIL import Image
 from torchvision.io import read_image
 
-from . import utils
 from .models.pixelwise_classifier import PixelwiseClassifier
 
 
-def parse_colour_map_from_string(colour_map_str: str):
-    colours = utils.parse_colours_from_string(colour_map_str)
-    return {i: rgb for i, rgb in enumerate(colours)}
-
-
-def parse_colour_map_from_file(path: str):
-    colours = utils.parse_colours_from_file(path)
-    return {i: rgb for i, rgb in enumerate(colours)}
-
-
-def load_model(model_path: str, input_dim: int, hidden_dim: int, output_dim: int):
-    model = PixelwiseClassifier(input_dim, hidden_dim, output_dim)
-    model.load_state_dict(torch.load(model_path))
+def load_model(model_path: str):
+    print(model_path)
+    model = PixelwiseClassifier.load_from_checkpoint(checkpoint_path=model_path)
     model.eval()
 
     return model
-
-
-def parse_colour_map_from_string(colour_map_str: str):
-    parts = [p.strip() for p in colour_map_str.split(";") if p.strip()]
-    colour_map = {}
-
-    for i, p in enumerate(parts):
-        rgb = tuple(int(x) for x in p.split(","))
-        if len(rgb) != 3:
-            raise ValueError(f"Invalid colour triple: {p}")
-
-        colour_map[i] = rgb
-
-    return colour_map
-
-
-def parse_colour_map_from_file(path: str):
-    colour_map = {}
-
-    with open(path, "r") as f:
-        for i, line in enumerate(f):
-            line = line.strip()
-            if not line or line.startswith("#"):
-                continue
-
-            rgb = tuple(int(x) for x in line.split(","))
-            if len(rgb) != 3:
-                raise ValueError(f"Invalid colour triple in file {path}: {line}")
-
-            colour_map[i] = rgb
-
-    if not colour_map:
-        raise ValueError(f"No colours found in file: {path}")
-
-    return colour_map
 
 
 def map_int_to_rgb(indexed_image: torch.Tensor, colour_map: dict):
@@ -104,8 +58,7 @@ def run_inference(
     if colour_map is None:
         raise ValueError("colour_map must be provided")
 
-    num_classes = len(colour_map)
-    model = load_model(model_path, input_dim=3, hidden_dim=32, output_dim=num_classes)
+    model = load_model(model_path)
 
     exts_list = [e.lower().strip() for e in exts.split(",")]
     out_dir = output_dir if not inplace else input_dir

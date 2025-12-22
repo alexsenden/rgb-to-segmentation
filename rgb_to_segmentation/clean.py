@@ -6,16 +6,6 @@ import numpy as np
 from PIL import Image
 from scipy import ndimage
 
-from . import utils
-
-
-def parse_palette_from_string(colours_str: str) -> np.ndarray:
-    return np.asarray(utils.parse_colours_from_string(colours_str), dtype=np.uint8)
-
-
-def parse_palette_from_file(path: str) -> np.ndarray:
-    return np.asarray(utils.parse_colours_from_file(path), dtype=np.uint8)
-
 
 def nearest_palette_image(image_array: np.ndarray, palette: np.ndarray) -> np.ndarray:
     """
@@ -26,19 +16,22 @@ def nearest_palette_image(image_array: np.ndarray, palette: np.ndarray) -> np.nd
         raise ValueError("image_array must have shape (H, W, 3)")
 
     h, w, _ = image_array.shape
-    flat = image_array.reshape(-1, 3).astype(np.int16)
-    pal = palette.astype(np.int16)
+    flat = image_array.reshape(-1, 3).astype(np.int64)
+    pal = palette.astype(np.int64)
 
     # Compute squared distances between each pixel and each palette colour.
     # distances shape: (N_pixels, K)
     d = np.sum((flat[:, None, :] - pal[None, :, :]) ** 2, axis=2)
+
     idx = np.argmin(d, axis=1)
     new_flat = pal[idx]
     new = new_flat.reshape(h, w, 3).astype(np.uint8)
     return new
 
 
-def get_palette_for_image(image_array: np.ndarray, full_palette: np.ndarray) -> np.ndarray:
+def get_palette_for_image(
+    image_array: np.ndarray, full_palette: np.ndarray
+) -> np.ndarray:
     """
     Identify which colours from the full palette are present in the image,
     and return only those colours.
@@ -46,14 +39,14 @@ def get_palette_for_image(image_array: np.ndarray, full_palette: np.ndarray) -> 
     h, w, _ = image_array.shape
     flat_img = image_array.reshape(-1, 3).astype(np.int16)
     pal = full_palette.astype(np.int16)
-    
+
     # For each pixel, find the nearest palette colour
     d = np.sum((flat_img[:, None, :] - pal[None, :, :]) ** 2, axis=2)
     idx = np.argmin(d, axis=1)
-    
+
     # Get unique indices that are actually used
     unique_idx = np.unique(idx)
-    
+
     # Return only the palette colours that are used
     return full_palette[unique_idx]
 
@@ -68,38 +61,40 @@ def apply_morphological_clean(image_array: np.ndarray, kernel_size: int) -> np.n
 
     # Create morphological kernel
     kernel = ndimage.generate_binary_structure(2, 2)
-    
+
     # Get unique colours that actually appear in the image
     h, w, _ = image_array.shape
     flat_img = image_array.reshape(-1, 3)
     unique_colours = np.unique(flat_img, axis=0)
-    
+
     # Process each class separately to avoid blending
     result = np.zeros_like(image_array)
-    
+
     for colour in unique_colours:
         # Create binary mask for this class
         mask = np.all(image_array == colour, axis=-1)
-        
+
         # Apply closing: erosion then dilation
         for _ in range(kernel_size):
             mask = ndimage.binary_erosion(mask, structure=kernel)
         for _ in range(kernel_size):
             mask = ndimage.binary_dilation(mask, structure=kernel)
-        
+
         # Assign pixels back
         result[mask] = colour
-    
+
     # Fill any remaining pixels (from eroded areas) with nearest colour from result
     unfilled = ~np.any(result != 0, axis=-1)
     if np.any(unfilled):
         # For unfilled pixels, use nearest palette colour again or copy from nearby
         result[unfilled] = image_array[unfilled]
-    
+
     return result
 
 
-def process_file(input_path: str, output_path: str, palette: np.ndarray, kernel_size: int):
+def process_file(
+    input_path: str, output_path: str, palette: np.ndarray, kernel_size: int
+):
     try:
         img = Image.open(input_path).convert("RGB")
     except Exception as e:
@@ -107,23 +102,29 @@ def process_file(input_path: str, output_path: str, palette: np.ndarray, kernel_
         return
 
     arr = np.array(img, dtype=np.uint8)
-    
+
     # Reduce palette to only colours present in this image
     reduced_palette = get_palette_for_image(arr, palette)
-    
+
     cleaned = nearest_palette_image(arr, reduced_palette)
-    
+
     # Apply morphological transformations if kernel_size > 0
     if kernel_size > 0:
         cleaned = apply_morphological_clean(cleaned, kernel_size)
-    
+
     # Ensure output directory exists
     os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
     Image.fromarray(cleaned).save(output_path)
 
 
 def process_directory(
-    input_dir: str, output_dir: str, palette: np.ndarray, exts: List[str], inplace: bool, name_filter: str = "", kernel_size: int = 0
+    input_dir: str,
+    output_dir: str,
+    palette: np.ndarray,
+    exts: List[str],
+    inplace: bool,
+    name_filter: str = "",
+    kernel_size: int = 0,
 ):
     exts = [e.lower().strip() for e in exts]
     for root, dirs, files in os.walk(input_dir):
@@ -142,7 +143,15 @@ def process_directory(
             process_file(in_path, out_path, palette, kernel_size)
 
 
-def clean_segmentation(input_dir: str, output_dir: str = None, inplace: bool = False, palette: np.ndarray = None, exts: str = ".png,.jpg,.jpeg,.tiff,.bmp,.gif", name_filter: str = "", morph_kernel_size: int = 3):
+def clean_segmentation(
+    input_dir: str,
+    output_dir: str = None,
+    inplace: bool = False,
+    palette: np.ndarray = None,
+    exts: str = ".png,.jpg,.jpeg,.tiff,.bmp,.gif",
+    name_filter: str = "",
+    morph_kernel_size: int = 3,
+):
     """
     Clean segmentation images using palette-based color mapping.
 
@@ -171,5 +180,7 @@ def clean_segmentation(input_dir: str, output_dir: str = None, inplace: bool = F
     print(
         f"Processing: input={input_dir} -> output={out_dir}, colours={len(palette)}, morph_kernel={morph_kernel_size}"
     )
-    process_directory(input_dir, out_dir, palette, exts_list, inplace, name_filter, morph_kernel_size)
+    process_directory(
+        input_dir, out_dir, palette, exts_list, inplace, name_filter, morph_kernel_size
+    )
     print("Done.")

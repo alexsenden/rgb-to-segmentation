@@ -47,17 +47,19 @@ def main_clean():
         help="Only process files whose name contains this substring.",
     )
 
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument(
+        "--colour_map",
+        type=str,
+        help="Semicolon-separated list of RGB triples.",
+    )
+    group.add_argument(
+        "--colour_map_file",
+        type=str,
+        help="Path to a file listing RGB triples.",
+    )
+
     # Palette-specific args
-    parser.add_argument(
-        "--colours",
-        type=str,
-        help="Semicolon-separated list of RGB triples for palette method.",
-    )
-    parser.add_argument(
-        "--colours_file",
-        type=str,
-        help="Path to a file listing RGB triples for palette method.",
-    )
     parser.add_argument(
         "--morph_kernel_size",
         type=int,
@@ -71,28 +73,15 @@ def main_clean():
         type=str,
         help="Path to trained model for nn method.",
     )
-    parser.add_argument(
-        "--colour_map",
-        type=str,
-        help="Semicolon-separated list of RGB triples for nn method.",
-    )
-    parser.add_argument(
-        "--colour_map_file",
-        type=str,
-        help="Path to a file listing RGB triples for nn method.",
-    )
 
     args = parser.parse_args()
 
-    if args.colours_file:
-        colours = utils.parse_colours_from_file(args.colours_file)
+    if args.colour_map_file:
+        colours = utils.parse_colours_from_file(args.colour_map_file)
     else:
-        colours = utils.parse_colours_from_string(args.colours)
+        colours = utils.parse_colours_from_string(args.colour_map)
 
     if args.method == "palette":
-        if not args.colours and not args.colours_file:
-            parser.error("--colours or --colours_file required for palette method")
-
         palette = np.asarray(colours, dtype=np.uint8)
 
         clean.clean_segmentation(
@@ -108,8 +97,6 @@ def main_clean():
     elif args.method == "nn":
         if not args.model_path:
             parser.error("--model_path required for nn method")
-        if not args.colour_map and not args.colour_map_file:
-            parser.error("--colour_map or --colour_map_file required for nn method")
 
         colour_map = {i: rgb for i, rgb in enumerate(colours)}
         nn.run_inference(

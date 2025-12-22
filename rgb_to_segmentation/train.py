@@ -7,21 +7,10 @@ from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from torch.utils.data import DataLoader, Dataset, random_split
 from torchvision.io import read_image
 
-from . import utils
 from .nn import PixelwiseClassifier
 
 
 VALIDATION_FRACTION = 0.2
-
-
-def parse_colour_map_from_string(colour_map_str: str):
-    colours = utils.parse_colours_from_string(colour_map_str)
-    return {i: rgb for i, rgb in enumerate(colours)}
-
-
-def parse_colour_map_from_file(path: str):
-    colours = utils.parse_colours_from_file(path)
-    return {i: rgb for i, rgb in enumerate(colours)}
 
 
 def map_colour_to_int(sample, colour_map):
@@ -59,43 +48,93 @@ class SegMaskDataset(Dataset):
         return (sample, target)
 
 
-def get_colour_map(colour_map_str=None, colour_map_file=None):
-    if colour_map_file:
-        return parse_colour_map_from_file(colour_map_file)
-    elif colour_map_str:
-        return parse_colour_map_from_string(colour_map_str)
-    else:
-        raise ValueError("Either colour_map or colour_map_file must be provided")
+def get_png_basenames(directory: str) -> list[str]:
+    return [
+        os.path.splitext(filename)[0]
+        for filename in os.listdir(directory)
+        if filename.endswith(".png")
+    ]
 
 
-def get_paired_filenames(image_dir, label_dir):
-    paired = []
-    for root, dirs, files in os.walk(image_dir):
-        rel = os.path.relpath(root, image_dir)
-        label_root = os.path.join(label_dir, rel)
-        if not os.path.exists(label_root):
-            continue
-        for fname in files:
-            if not fname.lower().endswith((".png", ".jpg", ".jpeg")):
-                continue
-            sample_path = os.path.join(root, fname)
-            target_path = os.path.join(label_root, fname)
-            if os.path.exists(target_path):
-                paired.append({"sample": sample_path, "target": target_path})
-    return paired
+def get_paired_filenames(
+    image_dir: str,
+    label_dir: str,
+    noisy_basenames: list[str],
+    label_basenames: list[str],
+    training_label_basenames: list[str],
+) -> list[dict]:
+    training_paired_filenames = []
+    val_paired_filenames = []
+
+    for noisy_image_name in noisy_basenames:
+        targets = [
+            target_file
+            for target_file in label_basenames
+            if target_file in noisy_image_name
+        ]
+
+        if len(targets) > 1:
+            raise Exception(
+                f"Multiple target files exist for noisy file {noisy_image_name}: {targets}."
+            )
+        elif len(targets) < 1:
+            print(
+                f"WARNING: No target found for noisy file {noisy_image_name}. Discarding."
+            )
+        else:
+            target_filename = targets[0]
+
+            if target_filename in training_label_basenames:
+                training_paired_filenames.append(
+                    {
+                        "sample": f"{image_dir}/{noisy_image_name}.png",
+                        "target": f"{label_dir}/{target_filename}.png",
+                    }
+                )
+            else:
+                val_paired_filenames.append(
+                    {
+                        "sample": f"{image_dir}/{noisy_image_name}.png",
+                        "target": f"{label_dir}/{target_filename}.png",
+                    }
+                )
+
+    return training_paired_filenames, val_paired_filenames
 
 
-def get_dataloaders(image_dir, label_dir, colour_map, model, batch_size=4):
-    paired_filenames = get_paired_filenames(image_dir, label_dir)
-    dataset = SegMaskDataset(paired_filenames, colour_map, model)
+def get_dataloaders(
+    image_dir, label_dir, colour_map, model
+) -> tuple[DataLoader, DataLoader]:
+    noisy_basenames = get_png_basenames(image_dir)
+    label_basenames = get_png_basenames(label_dir)
 
-    train_size = int((1 - VALIDATION_FRACTION) * len(dataset))
-    val_size = len(dataset) - train_size
+    training_label_basenames, val_label_basenames = random_split(
+        label_basenames, [1 - VALIDATION_FRACTION, VALIDATION_FRACTION]
+    )
 
-    train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
+    training_paired_filenames, val_paired_filenames = get_paired_filenames(
+        image_dir,
+        label_dir,
+        noisy_basenames,
+        label_basenames,
+        training_label_basenames,
+    )
 
-    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-    val_dataloader = DataLoader(val_dataset, batch_size=batch_size)
+    train_dataset = SegMaskDataset(training_paired_filenames, colour_map, model)
+    val_dataset = SegMaskDataset(val_paired_filenames, colour_map, model)
+
+    train_dataloader = DataLoader(
+        dataset=train_dataset,
+        batch_size=1,
+        shuffle=True,
+        num_workers=2,
+    )
+    val_dataloader = DataLoader(
+        dataset=val_dataset,
+        batch_size=1,
+        shuffle=True,
+        num_workers=2,
+    )
 
     return train_dataloader, val_dataloader
 
