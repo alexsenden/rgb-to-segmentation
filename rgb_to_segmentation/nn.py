@@ -1,11 +1,50 @@
 import os
 
+import numpy as np
 import torch
 
 from PIL import Image
 from torchvision.io import read_image
 
 from .models.pixelwise_classifier import PixelwiseClassifier
+
+
+def clean_image_nn(
+    image_array: np.ndarray,
+    model: object,
+    colour_map: dict,
+    output_type: str = "rgb",
+) -> np.ndarray:
+    """
+    Clean a single image using the neural network model.
+
+    Args:
+        image_array: Numpy array (H, W, 3) uint8
+        model: Trained model with `image_to_batch` and `forward`
+        colour_map: Dict[int, (r,g,b)] used for RGB output mapping
+        output_type: 'rgb' for colour image, 'index' for class-index mask
+
+    Returns:
+        np.ndarray: (H,W,3) uint8 if output_type='rgb'; else (H,W) uint8
+    """
+    if output_type not in ("rgb", "index"):
+        raise ValueError("output_type must be 'rgb' or 'index'")
+
+    import torch
+
+    img_t = torch.from_numpy(image_array).permute(2, 0, 1).float() / 127.5 - 1.0
+    h, w = img_t.shape[1], img_t.shape[2]
+    batch = model.image_to_batch(img_t)
+
+    with torch.no_grad():
+        probs = model(batch)
+        predicted = torch.argmax(probs, dim=-1).reshape(h, w)
+
+    if output_type == "rgb":
+        rgb_image_t = map_int_to_rgb(predicted, colour_map)
+        return rgb_image_t.permute(1, 2, 0).numpy()
+    else:
+        return predicted.cpu().numpy().astype(np.uint8)
 
 
 def load_model(model_path: str):
@@ -67,7 +106,9 @@ def run_inference(
     if not inplace:
         os.makedirs(out_dir, exist_ok=True)
 
-    print(f"Running inference: input={input_dir} -> output={out_dir}, output_type={output_type}")
+    print(
+        f"Running inference: input={input_dir} -> output={out_dir}, output_type={output_type}"
+    )
 
     for root, dirs, files in os.walk(input_dir):
         rel = os.path.relpath(root, input_dir)
@@ -85,21 +126,19 @@ def run_inference(
             out_path = os.path.join(out_root, fname)
 
             try:
-                img = read_image(in_path, mode="RGB").float() / 127.5 - 1.0  # Normalize
-                h, w = img.shape[1], img.shape[2]
+                # Load as numpy for the shared single-image cleaner
+                pil_img = Image.open(in_path).convert("RGB")
+                np_img = np.array(pil_img, dtype=np.uint8)
 
-                batch = model.image_to_batch(img)
-
-                with torch.no_grad():
-                    probs = model(batch)
-                    predicted = torch.argmax(probs, dim=-1).reshape(h, w)
+                cleaned = clean_image_nn(
+                    np_img, model=model, colour_map=colour_map, output_type=output_type
+                )
 
                 if output_type == "rgb":
-                    rgb_image = map_int_to_rgb(predicted, colour_map)
-                    pil_image = Image.fromarray(rgb_image.permute(1, 2, 0).numpy())
+                    pil_image = Image.fromarray(cleaned)
                     pil_image.save(out_path)
                 elif output_type == "index":
-                    pil_image = Image.fromarray(predicted.cpu().numpy().astype("uint8"), mode="L")
+                    pil_image = Image.fromarray(cleaned.astype("uint8"), mode="L")
                     pil_image.save(out_path)
                 else:
                     raise ValueError("output_type must be 'rgb' or 'index'")

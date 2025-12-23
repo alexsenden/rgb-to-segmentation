@@ -7,6 +7,43 @@ from PIL import Image
 from scipy import ndimage
 
 
+def clean_image_palette(
+    image_array: np.ndarray,
+    palette: np.ndarray,
+    morph_kernel_size: int = 0,
+    output_type: str = "rgb",
+) -> np.ndarray:
+    """
+    Clean a single RGB image using palette-based nearest-colour mapping.
+
+    Args:
+        image_array: (H, W, 3) uint8
+        palette: (K, 3) uint8
+        morph_kernel_size: kernel size for morphological cleaning (0 disables)
+        output_type: 'rgb' to return colour image; 'index' to return integer mask
+
+    Returns:
+        np.ndarray: (H,W,3) uint8 if output_type='rgb'; else (H,W) uint8
+    """
+    if output_type not in ("rgb", "index"):
+        raise ValueError("output_type must be 'rgb' or 'index'")
+
+    # Reduce palette to colours present in the image for efficiency
+    reduced_palette = get_palette_for_image(image_array, palette)
+
+    # Map to nearest colours
+    cleaned_rgb = nearest_palette_image(image_array, reduced_palette)
+
+    # Optional morphological clean
+    if morph_kernel_size > 0:
+        cleaned_rgb = apply_morphological_clean(cleaned_rgb, morph_kernel_size)
+
+    if output_type == "rgb":
+        return cleaned_rgb
+    else:
+        return rgb_image_to_index(cleaned_rgb, reduced_palette).astype(np.uint8)
+
+
 def nearest_palette_image(image_array: np.ndarray, palette: np.ndarray) -> np.ndarray:
     """
     Assign each pixel in `image_array` (H,W,3 uint8) to the nearest colour in `palette` (K,3 uint8).
@@ -120,14 +157,10 @@ def process_file(
 
     arr = np.array(img, dtype=np.uint8)
 
-    # Reduce palette to only colours present in this image
-    reduced_palette = get_palette_for_image(arr, palette)
-
-    cleaned = nearest_palette_image(arr, reduced_palette)
-
-    # Apply morphological transformations if kernel_size > 0
-    if kernel_size > 0:
-        cleaned = apply_morphological_clean(cleaned, kernel_size)
+    # Clean image using core function
+    cleaned = clean_image_palette(
+        arr, palette=palette, morph_kernel_size=kernel_size, output_type=output_type
+    )
 
     # Ensure output directory exists
     os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
@@ -135,8 +168,7 @@ def process_file(
     if output_type == "rgb":
         Image.fromarray(cleaned).save(output_path)
     elif output_type == "index":
-        index_mask = rgb_image_to_index(cleaned, reduced_palette)
-        Image.fromarray(index_mask.astype(np.uint8), mode="L").save(output_path)
+        Image.fromarray(cleaned.astype(np.uint8), mode="L").save(output_path)
     else:
         raise ValueError("output_type must be 'rgb' or 'index'")
 

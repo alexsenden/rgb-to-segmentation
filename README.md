@@ -89,7 +89,7 @@ You can also use the package programmatically:
 
 ```python
 import numpy as np
-from rgb_to_segmentation import clean, nn, train, utils
+from rgb_to_segmentation import clean, nn, train, utils, clean_image
 
 # Palette cleaning
 colours = utils.parse_colours_from_string("0,0,0;255,0,0;0,255,0")
@@ -105,6 +105,25 @@ nn.run_inference(input_dir="/path/to/input", output_dir="/path/to/output", model
 colours = utils.parse_colours_from_string("0,0,0;255,0,0;0,255,0")
 colour_map = {i: rgb for i, rgb in enumerate(colours)}
 train.train_model(image_dir="/path/to/images", label_dir="/path/to/labels", output_dir="/path/to/output", colour_map=colour_map)
+
+# Single-image cleaning (programmatic-only API)
+# Palette method (returns RGB); palette is derived internally from colour_map
+rgb_out = clean_image(
+	image_array=np.zeros((512, 512, 3), dtype=np.uint8),
+	method="palette",
+	colour_map=colour_map,
+	morph_kernel_size=3,
+	output_type="rgb",
+)
+
+# NN method (returns index mask)
+index_out = clean_image(
+	image_array=np.zeros((512, 512, 3), dtype=np.uint8),
+	method="nn",
+	model=None,  # Provide a loaded model instance
+	colour_map=colour_map,
+	output_type="index",
+)
 ```
 
 ## Contributing
