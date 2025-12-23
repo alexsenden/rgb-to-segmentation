@@ -54,16 +54,16 @@ Options:
 - `--exts`: Comma-separated list of allowed image extensions
 - `--name_filter`: Only process files whose name contains this substring
 - `--output_type`: Output format ('rgb' or 'index')
-
-For palette method:
 - `--colour_map`: Semicolon-separated list of RGB triples
 - `--colour_map_file`: Path to a file listing RGB triples
+
+For palette method:
+
 - `--morph_kernel_size`: Size of morphological kernel for boundary cleaning
 
 For nn method:
+
 - `--model_path`: Path to trained model file
-- `--colour_map`: Semicolon-separated list of RGB triples
-- `--colour_map_file`: Path to a file listing RGB triples
 
 ### Training the Neural Network Model
 
@@ -74,6 +74,7 @@ segment-train --image_dir /path/to/noisy_images --label_dir /path/to/labels --ou
 ```
 
 Options:
+
 - `--image_dir`: Path to directory containing noisy images
 - `--label_dir`: Path to directory containing target RGB labels
 - `--output_dir`: Directory where model weights will be saved

@@ -6,14 +6,12 @@ from .clean import clean_image_palette
 from .nn import clean_image_nn
 
 
-
-
 def clean_image(
     image_array: np.ndarray,
     method: str,
+    colour_map: Dict[int, Tuple[int, int, int]],
     *,
     model: Optional[object] = None,
-    colour_map: Optional[Dict[int, Tuple[int, int, int]]] = None,
     morph_kernel_size: int = 0,
     output_type: str = "rgb",
 ) -> np.ndarray:
@@ -38,9 +36,6 @@ def clean_image(
         raise ValueError("output_type must be 'rgb' or 'index'")
 
     if method == "palette":
-        if colour_map is None:
-            raise ValueError("colour_map must be provided for method='palette'")
-
         # Build palette ndarray from colour_map in index order and delegate to core function
         keys = sorted(colour_map.keys())
         palette = np.asarray([colour_map[k] for k in keys], dtype=np.uint8)
@@ -55,9 +50,6 @@ def clean_image(
     elif method == "nn":
         if model is None:
             raise ValueError("model must be provided for method='nn'")
-
-        if colour_map is None:
-            raise ValueError("colour_map must be provided for method='nn'")
 
         return clean_image_nn(
             image_array,
