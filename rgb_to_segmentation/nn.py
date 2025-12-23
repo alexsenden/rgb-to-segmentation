@@ -48,7 +48,6 @@ def clean_image_nn(
 
 
 def load_model(model_path: str):
-    print(model_path)
     model = PixelwiseClassifier.load_from_checkpoint(checkpoint_path=model_path)
     model.eval()
 

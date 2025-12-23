@@ -6,6 +6,8 @@ from .clean import clean_image_palette
 from .nn import clean_image_nn
 
 
+
+
 def clean_image(
     image_array: np.ndarray,
     method: str,
