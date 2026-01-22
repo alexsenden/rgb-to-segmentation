@@ -1,52 +1,28 @@
-import pytorch_lightning as pl
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from .base_classifier import PixelClassifier
 
-class PixelwiseClassifier(pl.LightningModule):
+
+class PixelwiseClassifier(PixelClassifier):
     step = 0
     val_step = 0
 
     def __init__(self, input_dim, hidden_dim, output_dim):
-        super().__init__()
+        super().__init__(output_dim=output_dim)
         self.save_hyperparameters()
 
-        self.output_dim = output_dim
         self.net = nn.Sequential(
             nn.Linear(input_dim, hidden_dim),
             nn.ReLU(),
             nn.Linear(hidden_dim, output_dim),
         )
         self.softmax = nn.Softmax(dim=-1)
-        self.loss_fn = nn.CrossEntropyLoss()
 
     def forward(self, x: torch.Tensor):
         x = self.net(x)
         return self.softmax(x)
-
-    def training_step(self, batch, batch_idx):
-        sample, target = batch
-        probs = self(sample)
-        target = F.one_hot(target.squeeze(-1), num_classes=self.output_dim).to(
-            dtype=sample.dtype
-        )
-        loss = self.loss_fn(probs, target)
-        self.log("train_loss", loss)
-        return loss
-
-    def validation_step(self, batch, batch_idx):
-        sample, target = batch
-        probs = self(sample)
-        target = F.one_hot(target.squeeze(-1), num_classes=self.output_dim).to(
-            dtype=sample.dtype
-        )
-        loss = self.loss_fn(probs, target)
-        self.log("val_loss", loss, prog_bar=True)
-        return loss
-
-    def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters())
 
     def image_to_batch(self, x: torch.Tensor):
         if len(x.shape) == 3:

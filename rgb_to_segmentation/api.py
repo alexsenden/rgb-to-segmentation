@@ -56,8 +56,8 @@ def clean_image(
 
     Args:
         image_array: Array/Tensor of shape (H, W, 3), dtype uint8.
-        method: "palette", "pixel_decoder", or "strict_palette" to choose cleaning approach.
-        model: Required when method="pixel_decoder". A trained model with forward(batch) returning class probabilities.
+        method: "palette", "strict_palette", "pixel_decoder", or "cnn_decoder" to choose cleaning approach.
+        model: Required when method="pixel_decoder" or "cnn_decoder". A trained model with forward(batch) returning class probabilities.
         colour_map: Required for all methods. Dict mapping class index -> (r,g,b).
         morph_kernel_size: Optional morphological clean kernel size (palette method only).
         output_type: "rgb" to return colour image, "index" to return integer mask.
@@ -104,9 +104,20 @@ def clean_image(
             output_type=output_type,
         )
 
+    elif method == "cnn_decoder":
+        if model is None:
+            raise ValueError("model must be provided for method='cnn_decoder'")
+
+        cleaned = clean_image_nn(
+            np_image,
+            model=model,
+            colour_map=colour_map,
+            output_type=output_type,
+        )
+
     else:
         raise ValueError(
-            "method must be 'palette', 'strict_palette', or 'pixel_decoder'"
+            "method must be 'palette', 'strict_palette', 'pixel_decoder', or 'cnn_decoder'"
         )
 
     return _to_original_type(cleaned, is_torch, orig_dtype, orig_device)
