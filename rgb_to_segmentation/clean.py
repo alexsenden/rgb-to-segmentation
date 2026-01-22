@@ -5,6 +5,7 @@ import numpy as np
 
 from PIL import Image
 from scipy import ndimage
+import torch
 
 
 def clean_image_palette(
@@ -42,6 +43,69 @@ def clean_image_palette(
         return cleaned_rgb
     else:
         return rgb_image_to_index(cleaned_rgb, reduced_palette).astype(np.uint8)
+
+
+def clean_image_strict_palette(
+    image_array: np.ndarray,
+    colour_map: dict,
+    output_type: str = "rgb",
+) -> np.ndarray:
+    """
+    Strictly map RGB values to indices based on colour_map.
+    Raises an error if any RGB value is not found in the colour_map.
+
+    Args:
+        image_array: (H, W, 3) uint8 numpy array
+        colour_map: Dict mapping class index -> (r,g,b)
+        output_type: 'rgb' to return colour image; 'index' to return integer mask
+
+    Returns:
+        np.ndarray: (H,W,3) uint8 if output_type='rgb'; else (H,W) uint8
+    """
+    if output_type not in ("rgb", "index"):
+        raise ValueError("output_type must be 'rgb' or 'index'")
+
+    h, w, _ = image_array.shape
+    flat_img = image_array.reshape(-1, 3)
+
+    # Build reverse lookup: RGB tuple -> class index
+    rgb_to_idx = {tuple(map(int, rgb)): idx for idx, rgb in colour_map.items()}
+
+    # Find all unique RGB values in the image
+    unique_colours = np.unique(flat_img, axis=0)
+
+    # Check if all colours are in the colour_map
+    unmapped_colours = []
+    for colour in unique_colours:
+        colour_tuple = tuple(map(int, colour))
+        if colour_tuple not in rgb_to_idx:
+            unmapped_colours.append(colour_tuple)
+
+    if unmapped_colours:
+        # Format error message with unmapped colours
+        colour_strs = [f"RGB{c}" for c in unmapped_colours[:10]]  # Show first 10
+        if len(unmapped_colours) > 10:
+            colour_strs.append(f"... and {len(unmapped_colours) - 10} more")
+        raise ValueError(
+            f"Image contains {len(unmapped_colours)} RGB value(s) not in colour_map: "
+            f"{', '.join(colour_strs)}. All pixel values must exactly match a colour in the map."
+        )
+
+    # Map each pixel to its class index
+    flat_indices = np.array(
+        [rgb_to_idx[tuple(map(int, px))] for px in flat_img], dtype=np.uint16
+    )
+    index_image = flat_indices.reshape(h, w).astype(np.uint8)
+
+    if output_type == "index":
+        return index_image
+    else:
+        # Convert back to RGB using colour_map
+        rgb_output = np.zeros((h, w, 3), dtype=np.uint8)
+        for idx, rgb in colour_map.items():
+            mask = index_image == idx
+            rgb_output[mask] = rgb
+        return rgb_output
 
 
 def nearest_palette_image(image_array: np.ndarray, palette: np.ndarray) -> np.ndarray:
