@@ -36,12 +36,10 @@ def map_colour_to_int(sample, colour_map):
 
 
 def collate_fn(batch):
-    """Custom collate to apply image_to_batch on GPU."""
+    """Stack samples/targets; model converts to batch on device."""
     samples, targets = zip(*batch)
-    # Stack into batch tensors
     samples = torch.stack(samples, dim=0)
     targets = torch.stack(targets, dim=0)
-    # Apply model-specific batching (will happen on GPU in training loop)
     return samples, targets
 
 
@@ -49,7 +47,6 @@ class SegMaskDataset(Dataset):
     def __init__(self, paired_filenames, colour_map, model):
         self.paired_filenames = paired_filenames
         self.colour_map = colour_map
-        self.to_batch = model.image_to_batch
 
     def __len__(self):
         return len(self.paired_filenames)
@@ -63,10 +60,9 @@ class SegMaskDataset(Dataset):
         ) - 1.0  # Normalize to [-1, 1]
         target = read_image(target_path, mode="RGB")
         target = map_colour_to_int(target, self.colour_map)
-        sample = self.to_batch(sample)
-        target = self.to_batch(target).to(torch.long)
 
-        return (sample, target)
+        # Keep tensors in CHW for conversion on GPU later
+        return (sample, target.to(torch.long))
 
 
 def get_png_basenames(directory: str) -> list[str]:
