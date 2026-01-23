@@ -35,6 +35,16 @@ def map_colour_to_int(sample, colour_map):
     return image_array
 
 
+def collate_fn(batch):
+    """Custom collate to apply image_to_batch on GPU."""
+    samples, targets = zip(*batch)
+    # Stack into batch tensors
+    samples = torch.stack(samples, dim=0)
+    targets = torch.stack(targets, dim=0)
+    # Apply model-specific batching (will happen on GPU in training loop)
+    return samples, targets
+
+
 class SegMaskDataset(Dataset):
     def __init__(self, paired_filenames, colour_map, model):
         self.paired_filenames = paired_filenames
@@ -133,15 +143,6 @@ def get_dataloaders(
 
     train_dataset = SegMaskDataset(training_paired_filenames, colour_map, model)
     val_dataset = SegMaskDataset(val_paired_filenames, colour_map, model)
-
-    def collate_fn(batch):
-        """Custom collate to apply image_to_batch on GPU."""
-        samples, targets = zip(*batch)
-        # Stack into batch tensors
-        samples = torch.stack(samples, dim=0)
-        targets = torch.stack(targets, dim=0)
-        # Apply model-specific batching (will happen on GPU in training loop)
-        return samples, targets
 
     train_dataloader = DataLoader(
         dataset=train_dataset,
