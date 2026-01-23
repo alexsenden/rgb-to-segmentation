@@ -49,6 +49,10 @@ class PixelClassifier(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         """Training step."""
         sample, target = batch
+        # Apply model-specific batching on GPU
+        sample = self.image_to_batch(sample)
+        target = self.image_to_batch(target).long()
+        
         logits = self(sample)
         logits, target = self._align_logits_and_target(logits, target)
         loss = self.loss_fn(logits, target)
@@ -58,6 +62,10 @@ class PixelClassifier(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         """Validation step."""
         sample, target = batch
+        # Apply model-specific batching on GPU
+        sample = self.image_to_batch(sample)
+        target = self.image_to_batch(target).long()
+        
         logits = self(sample)
         logits, target = self._align_logits_and_target(logits, target)
         loss = self.loss_fn(logits, target)

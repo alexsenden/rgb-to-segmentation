@@ -14,12 +14,23 @@ VALIDATION_FRACTION = 0.2
 
 
 def map_colour_to_int(sample, colour_map):
+    """Vectorized color to class index mapping."""
     _, H, W = sample.shape
-    image_array = torch.zeros((1, H, W))
 
+    # Create lookup tensor: shape (num_classes, 3)
+    num_classes = len(colour_map)
+    color_array = torch.zeros((num_classes, 3), dtype=sample.dtype)
     for idx, rgb in colour_map.items():
-        mask = torch.all(sample == torch.tensor(rgb).view(3, 1, 1), dim=0)
-        image_array[0][mask] = idx
+        color_array[idx] = torch.tensor(rgb, dtype=sample.dtype)
+
+    # Reshape for broadcasting: (3, H, W) -> (H, W, 3) -> (H*W, 3)
+    sample_flat = sample.permute(1, 2, 0).reshape(-1, 3)
+
+    # Compute distances to all colors: (H*W, num_classes)
+    distances = torch.cdist(sample_flat.float(), color_array.float(), p=2)
+
+    # Assign to nearest color
+    image_array = distances.argmin(dim=1).reshape(1, H, W)
 
     return image_array
 
@@ -123,17 +134,30 @@ def get_dataloaders(
     train_dataset = SegMaskDataset(training_paired_filenames, colour_map, model)
     val_dataset = SegMaskDataset(val_paired_filenames, colour_map, model)
 
+    def collate_fn(batch):
+        """Custom collate to apply image_to_batch on GPU."""
+        samples, targets = zip(*batch)
+        # Stack into batch tensors
+        samples = torch.stack(samples, dim=0)
+        targets = torch.stack(targets, dim=0)
+        # Apply model-specific batching (will happen on GPU in training loop)
+        return samples, targets
+
     train_dataloader = DataLoader(
         dataset=train_dataset,
         batch_size=1,
         shuffle=True,
-        num_workers=2,
+        num_workers=4,
+        prefetch_factor=4,
+        collate_fn=collate_fn,
     )
     val_dataloader = DataLoader(
         dataset=val_dataset,
         batch_size=1,
-        shuffle=True,
-        num_workers=2,
+        shuffle=False,
+        num_workers=4,
+        prefetch_factor=4,
+        collate_fn=collate_fn,
     )
 
     return train_dataloader, val_dataloader
