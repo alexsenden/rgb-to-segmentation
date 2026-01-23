@@ -53,8 +53,6 @@ class CNNDecoder(PixelClassifier):
             nn.Conv2d(hidden_dim, output_dim, kernel_size=3, padding=1),
         )
 
-        self.softmax = nn.Softmax(dim=1)
-
     def forward(self, x: torch.Tensor):
         """
         Forward pass.
@@ -63,11 +61,11 @@ class CNNDecoder(PixelClassifier):
             x: Input tensor of shape (B, C, H, W)
 
         Returns:
-            Output tensor of shape (B, num_classes, H, W) with softmax applied
+            Logits of shape (B, num_classes, H, W)
         """
         encoded = self.encoder(x)
         decoded = self.decoder(encoded)
-        return self.softmax(decoded)
+        return decoded
 
     def image_to_batch(self, x: torch.Tensor):
         """
@@ -89,17 +87,17 @@ class CNNDecoder(PixelClassifier):
         # sample shape: (B, C, H, W)
         # target shape: (B, H, W) with class indices
 
-        probs = self(sample)  # (B, num_classes, H, W)
+        logits = self(sample)  # (B, num_classes, H, W)
 
         # Compute loss
-        loss = self.loss_fn(probs, target)
+        loss = self.loss_fn(logits, target)
         self.log("train_loss", loss)
         return loss
 
     def validation_step(self, batch, batch_idx):
         """Validation step with softmax cross entropy loss."""
         sample, target = batch
-        probs = self(sample)  # (B, num_classes, H, W)
-        loss = self.loss_fn(probs, target)
+        logits = self(sample)  # (B, num_classes, H, W)
+        loss = self.loss_fn(logits, target)
         self.log("val_loss", loss, prog_bar=True)
         return loss

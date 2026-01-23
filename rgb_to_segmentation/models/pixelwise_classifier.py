@@ -18,11 +18,9 @@ class PixelwiseClassifier(PixelClassifier):
             nn.ReLU(),
             nn.Linear(hidden_dim, output_dim),
         )
-        self.softmax = nn.Softmax(dim=-1)
 
     def forward(self, x: torch.Tensor):
-        x = self.net(x)
-        return self.softmax(x)
+        return self.net(x)
 
     def image_to_batch(self, x: torch.Tensor):
         if len(x.shape) == 3:

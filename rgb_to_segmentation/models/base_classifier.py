@@ -29,19 +29,38 @@ class PixelClassifier(pl.LightningModule):
         """
         raise NotImplementedError
 
+    def _align_logits_and_target(
+        self, logits: torch.Tensor, target: torch.Tensor
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Reshape predictions/targets so CrossEntropyLoss receives the expected shapes."""
+
+        # Handle channel-first 4D logits from CNN decoders: (B, C, H, W)
+        if logits.dim() == 4:
+            # Targets may come in as (B, 1, H, W) – squeeze the class channel
+            if target.dim() == 4 and target.size(1) == 1:
+                target = target.squeeze(1)
+            return logits, target
+
+        # Everything else (e.g. flattened pixel classifiers): collapse batch/pixel dims
+        logits = logits.view(-1, logits.size(-1))
+        target = target.view(-1)
+        return logits, target
+
     def training_step(self, batch, batch_idx):
         """Training step."""
         sample, target = batch
-        probs = self(sample)
-        loss = self.loss_fn(probs, target)
+        logits = self(sample)
+        logits, target = self._align_logits_and_target(logits, target)
+        loss = self.loss_fn(logits, target)
         self.log("train_loss", loss)
         return loss
 
     def validation_step(self, batch, batch_idx):
         """Validation step."""
         sample, target = batch
-        probs = self(sample)
-        loss = self.loss_fn(probs, target)
+        logits = self(sample)
+        logits, target = self._align_logits_and_target(logits, target)
+        loss = self.loss_fn(logits, target)
         self.log("val_loss", loss, prog_bar=True)
         return loss
 
