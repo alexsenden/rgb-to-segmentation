@@ -142,7 +142,7 @@ def get_dataloaders(
 def get_model(model_type, colour_map):
     num_classes = len(colour_map.keys())
 
-    if model_type == "pixelwise":
+    if model_type == "pixel_decoder":
         return PixelwiseClassifier(input_dim=3, hidden_dim=32, output_dim=num_classes)
 
     raise ValueError(f"Invalid model type: {model_type}")
@@ -153,7 +153,7 @@ def train_model(
     label_dir: str,
     output_dir: str,
     colour_map: dict,
-    model_type: str = "pixelwise",
+    model_type: str = "pixel_decoder",
 ):
     """
     Train a neural network model for segmentation cleaning.
@@ -174,7 +174,11 @@ def train_model(
 
     early_stop = EarlyStopping(monitor="val_loss", mode="min", verbose=True)
     checkpoint = ModelCheckpoint(
-        monitor="val_loss", mode="min", save_top_k=1, dirpath=output_dir
+        monitor="val_loss",
+        mode="min",
+        save_top_k=1,
+        dirpath=output_dir,
+        filename=f"{model_type}.ckpt",
     )
     trainer = Trainer(max_epochs=100, callbacks=[early_stop, checkpoint])
 

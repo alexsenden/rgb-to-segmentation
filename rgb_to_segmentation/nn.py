@@ -7,6 +7,7 @@ from PIL import Image
 from torchvision.io import read_image
 
 from .models.pixelwise_classifier import PixelwiseClassifier
+from .models.cnn_decoder import CNNDecoder
 
 
 def clean_image_nn(
@@ -48,9 +49,24 @@ def clean_image_nn(
 
 
 def load_model(model_path: str):
-    model = PixelwiseClassifier.load_from_checkpoint(checkpoint_path=model_path)
-    model.eval()
+    if os.path.isdir(model_path):
+        checkpoint_files = [f for f in os.listdir(model_path) if f.endswith(".ckpt")]
 
+        if len(checkpoint_files) == 0:
+            raise ValueError(f"No checkpoint files found in directory: {model_path}")
+
+        model_path = os.path.join(model_path, checkpoint_files[0])
+
+    if "pixel_decoder" in model_path:
+        model = PixelwiseClassifier.load_from_checkpoint(checkpoint_path=model_path)
+    elif "cnn_decoder" in model_path:
+        model = CNNDecoder.load_from_checkpoint(checkpoint_path=model_path)
+    else:
+        raise ValueError(
+            "Model path must contain 'pixel_decoder' or 'cnn_decoder' to identify model type."
+        )
+
+    model.eval()
     return model
 
 

@@ -97,7 +97,7 @@ Options:
 - `--output_dir`: Directory where model weights will be saved
 - `--colour_map`: Semicolon-separated list of RGB triples
 - `--colour_map_file`: Path to a file listing RGB triples
-- `--model_type`: The type of model to train ('pixelwise' or 'cnn_decoder', default: pixelwise)
+- `--model_type`: The type of model to train ('pixel_decoder' or 'cnn_decoder', default: pixel_decoder)
 
 Note that one label image may have multiple corresponding noisy masks. Labels are matched to noisy masks whose filenames contain the label file basename (pre-extension name, i.e. `my_image.png` -> `my_image`).
 

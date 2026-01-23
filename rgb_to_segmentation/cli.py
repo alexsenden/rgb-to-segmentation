@@ -15,7 +15,7 @@ def main_clean():
         type=str,
         required=True,
         choices=["palette", "nn"],
-        help="Cleaning method to use: 'palette' for color palette mapping, 'nn' for neural network (pixelwise or CNN).",
+        help="Cleaning method to use: 'palette' for color palette mapping, 'nn' for neural network (pixel_decoder or CNN).",
     )
     parser.add_argument(
         "--input_dir",
@@ -146,9 +146,9 @@ def main_train():
     parser.add_argument(
         "--model_type",
         type=str,
-        choices=["pixelwise", "cnn_decoder"],
-        default="pixelwise",
-        help="The type of model to train: 'pixelwise' for MLP or 'cnn_decoder' for CNN-based decoder.",
+        choices=["pixel_decoder", "cnn_decoder"],
+        default="pixel_decoder",
+        help="The type of model to train: 'pixel_decoder' for MLP or 'cnn_decoder' for CNN-based decoder.",
     )
 
     group = parser.add_mutually_exclusive_group(required=True)
