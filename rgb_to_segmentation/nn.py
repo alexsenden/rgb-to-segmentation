@@ -31,15 +31,20 @@ def clean_image_nn(
     if output_type not in ("rgb", "index"):
         raise ValueError("output_type must be 'rgb' or 'index'")
 
-    import torch
-
     img_t = torch.from_numpy(image_array).permute(2, 0, 1).float() / 127.5 - 1.0
     h, w = img_t.shape[1], img_t.shape[2]
     batch = model.image_to_batch(img_t)
 
     with torch.no_grad():
-        probs = model(batch)
-        predicted = torch.argmax(probs, dim=-1).reshape(h, w)
+        logits = model(batch)
+
+        # Handle different output shapes: CNN (B, C, H, W) vs flattened (N, C)
+        if logits.dim() == 4:
+            # CNN decoder: (B, num_classes, H, W)
+            predicted = torch.argmax(logits, dim=1).squeeze(0)  # -> (H, W)
+        else:
+            # PixelwiseClassifier: (num_pixels, num_classes)
+            predicted = torch.argmax(logits, dim=-1).reshape(h, w)
 
     if output_type == "rgb":
         rgb_image_t = map_int_to_rgb(predicted, colour_map)
