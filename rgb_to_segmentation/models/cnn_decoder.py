@@ -71,32 +71,11 @@ class CNNDecoder(PixelClassifier):
         Convert image tensor to batch format for CNN processing.
 
         Args:
-            x: Input tensor of shape (C, H, W)
+            x: Input tensor of shape (C, H, W) or (B, C, H, W)
 
         Returns:
-            Batch tensor of shape (1, C, H, W)
+            Batch tensor of shape (B, C, H, W) or (B, 1, H, W) for targets
         """
         if len(x.shape) == 3:
             x = x.unsqueeze(0)
         return x.to(self.device)
-
-    def training_step(self, batch, batch_idx):
-        """Training step with softmax cross entropy loss."""
-        sample, target = batch
-        # sample shape: (B, C, H, W)
-        # target shape: (B, H, W) with class indices
-
-        logits = self(sample)  # (B, num_classes, H, W)
-
-        # Compute loss
-        loss = self.loss_fn(logits, target)
-        self.log("train_loss", loss)
-        return loss
-
-    def validation_step(self, batch, batch_idx):
-        """Validation step with softmax cross entropy loss."""
-        sample, target = batch
-        logits = self(sample)  # (B, num_classes, H, W)
-        loss = self.loss_fn(logits, target)
-        self.log("val_loss", loss, prog_bar=True)
-        return loss
