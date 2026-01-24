@@ -47,7 +47,7 @@ class SegMaskDataset(Dataset):
     def __init__(self, paired_filenames, colour_map, model):
         self.colour_map = colour_map
 
-        items = []
+        self.items = []
         for paired_files in paired_filenames:
             sample_path = paired_files["sample"]
             target_path = paired_files["target"]
@@ -58,7 +58,7 @@ class SegMaskDataset(Dataset):
             target = read_image(target_path, mode="RGB")
             target = map_colour_to_int(target, self.colour_map)
 
-            items.append((sample, target.to(torch.long)))
+            self.items.append((sample, target.to(torch.long)))
 
     def __len__(self):
         return len(self.items)
