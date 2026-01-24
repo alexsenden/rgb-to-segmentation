@@ -93,20 +93,11 @@ def clean_image(
             output_type=output_type,
         )
 
-    elif method == "pixel_decoder":
+    elif method in ["pixel_decoder", "cnn_decoder"]:
         if model is None:
-            raise ValueError("model must be provided for method='pixel_decoder'")
-
-        cleaned = clean_image_nn(
-            np_image,
-            model=model,
-            colour_map=colour_map,
-            output_type=output_type,
-        )
-
-    elif method == "cnn_decoder":
-        if model is None:
-            raise ValueError("model must be provided for method='cnn_decoder'")
+            raise ValueError(
+                "model must be provided for method=['pixel_decoder', 'cnn_decoder']"
+            )
 
         cleaned = clean_image_nn(
             np_image,

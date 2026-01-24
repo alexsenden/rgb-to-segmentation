@@ -179,6 +179,7 @@ def train_model(
     output_dir: str,
     colour_map: dict,
     model_type: str = "pixel_decoder",
+    device: torch.device = None,
 ):
     """
     Train a neural network model for segmentation cleaning.
@@ -189,7 +190,18 @@ def train_model(
         output_dir (str): Directory where model weights will be saved.
         colour_map (dict): Mapping from class indices to RGB tuples.
         model_type (str): The type of model to train.
+        device (torch.device, optional): Device to use for training.
     """
+    if torch.cuda.is_available():
+        accelerator = "gpu"
+        if device is None:
+            device_index = "auto"
+        else:
+            device_index = [device.index]
+    else:
+        accelerator = "cpu"
+        device_index = None
+
     model = get_model(model_type, colour_map)
     train_dataloader, val_dataloader = get_dataloaders(
         image_dir, label_dir, colour_map, model
@@ -205,7 +217,12 @@ def train_model(
         dirpath=output_dir,
         filename=model_type,
     )
-    trainer = Trainer(max_epochs=100, callbacks=[early_stop, checkpoint])
+    trainer = Trainer(
+        max_epochs=100,
+        callbacks=[early_stop, checkpoint],
+        accelerator=accelerator,
+        devices=device_index,
+    )
 
     trainer.fit(
         model, train_dataloaders=train_dataloader, val_dataloaders=val_dataloader

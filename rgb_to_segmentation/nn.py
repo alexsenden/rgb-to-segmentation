@@ -4,7 +4,6 @@ import numpy as np
 import torch
 
 from PIL import Image
-from torchvision.io import read_image
 
 from .models.pixelwise_classifier import PixelwiseClassifier
 from .models.cnn_decoder import CNNDecoder
@@ -33,7 +32,7 @@ def clean_image_nn(
 
     img_t = torch.from_numpy(image_array).permute(2, 0, 1).float() / 127.5 - 1.0
     h, w = img_t.shape[1], img_t.shape[2]
-    batch = model.image_to_batch(img_t)
+    batch = model.image_to_batch(img_t).to(model.device)
 
     with torch.no_grad():
         logits = model(batch)
