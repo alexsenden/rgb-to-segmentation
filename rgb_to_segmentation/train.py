@@ -7,7 +7,7 @@ from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from torch.utils.data import DataLoader, Dataset, random_split
 from torchvision.io import read_image
 
-from .nn import PixelwiseClassifier
+from .nn import PixelwiseClassifier, CNNDecoder
 
 
 VALIDATION_FRACTION = 0.2
@@ -45,24 +45,26 @@ def collate_fn(batch):
 
 class SegMaskDataset(Dataset):
     def __init__(self, paired_filenames, colour_map, model):
-        self.paired_filenames = paired_filenames
         self.colour_map = colour_map
 
+        items = []
+        for paired_files in paired_filenames:
+            sample_path = paired_files["sample"]
+            target_path = paired_files["target"]
+
+            sample = (
+                read_image(sample_path, mode="RGB") / 127.5
+            ) - 1.0  # Normalize to [-1, 1]
+            target = read_image(target_path, mode="RGB")
+            target = map_colour_to_int(target, self.colour_map)
+
+            items.append((sample, target.to(torch.long)))
+
     def __len__(self):
-        return len(self.paired_filenames)
+        return len(self.items)
 
     def __getitem__(self, index):
-        sample_path = self.paired_filenames[index]["sample"]
-        target_path = self.paired_filenames[index]["target"]
-
-        sample = (
-            read_image(sample_path, mode="RGB") / 127.5
-        ) - 1.0  # Normalize to [-1, 1]
-        target = read_image(target_path, mode="RGB")
-        target = map_colour_to_int(target, self.colour_map)
-
-        # Keep tensors in CHW for conversion on GPU later
-        return (sample, target.to(torch.long))
+        return self.items[index]
 
 
 def get_png_basenames(directory: str) -> list[str]:
@@ -165,6 +167,8 @@ def get_model(model_type, colour_map):
 
     if model_type == "pixel_decoder":
         return PixelwiseClassifier(input_dim=3, hidden_dim=32, output_dim=num_classes)
+    elif model_type == "cnn_decoder":
+        return CNNDecoder(input_dim=3, hidden_dim=32, output_dim=num_classes)
 
     raise ValueError(f"Invalid model type: {model_type}")
 
@@ -199,7 +203,7 @@ def train_model(
         mode="min",
         save_top_k=1,
         dirpath=output_dir,
-        filename=f"{model_type}.ckpt",
+        filename=model_type,
     )
     trainer = Trainer(max_epochs=100, callbacks=[early_stop, checkpoint])
 
