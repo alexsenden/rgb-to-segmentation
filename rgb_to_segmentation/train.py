@@ -168,7 +168,7 @@ def get_model(model_type, colour_map):
     if model_type == "pixel_decoder":
         return PixelwiseClassifier(input_dim=3, hidden_dim=32, output_dim=num_classes)
     elif model_type == "cnn_decoder":
-        return CNNDecoder(input_dim=3, hidden_dim=32, output_dim=num_classes)
+        return CNNDecoder(input_channels=3, hidden_dim=64, output_dim=num_classes)
 
     raise ValueError(f"Invalid model type: {model_type}")
 
