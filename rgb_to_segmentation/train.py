@@ -73,7 +73,7 @@ def get_png_basename_pairs(directory: str) -> list[str]:
     ]
     full_names = [filename for filename in dir_listing if filename.endswith(".png")]
 
-    return zip(basenames, full_names)
+    return list(zip(basenames, full_names))
 
 
 def get_paired_filenames(
@@ -92,7 +92,7 @@ def get_paired_filenames(
 
     for noisy_basename, noisy_fullname in noisy_basename_pairs:
         targets = [
-            target_fullname
+            (target_basename, target_fullname)
             for target_basename, target_fullname in label_basename_pairs
             if target_basename == noisy_basename
         ]
@@ -106,7 +106,7 @@ def get_paired_filenames(
                 f"WARNING: No target found for noisy file {noisy_fullname}. Discarding."
             )
         else:
-            target_basename = targets[0]
+            target_basename, target_fullname = targets[0]
 
             if target_basename in training_label_basenames:
                 training_paired_filenames.append(
