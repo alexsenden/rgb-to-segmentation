@@ -22,7 +22,6 @@ class CNNDecoder(PixelClassifier):
             output_dim: Number of output classes
         """
         super().__init__(output_dim=output_dim)
-        self.save_hyperparameters()
 
         self.input_channels = input_channels
         self.hidden_dim = hidden_dim
@@ -79,3 +78,14 @@ class CNNDecoder(PixelClassifier):
         if len(x.shape) == 3:
             x = x.unsqueeze(0)
         return x.to(self.device)
+
+    @classmethod
+    def load_from_checkpoint(cls, checkpoint_path: str, map_location=None):
+        ckpt = torch.load(checkpoint_path, map_location=map_location)
+        model_kwargs = ckpt.get("model_kwargs", {})
+        model = cls(**model_kwargs)
+        state_dict = ckpt.get("model_state_dict", {})
+        model.load_state_dict(state_dict)
+        model.colour_map = ckpt.get("colour_map")  # optional convenience
+        model.eval()
+        return model

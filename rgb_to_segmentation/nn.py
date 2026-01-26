@@ -52,24 +52,31 @@ def clean_image_nn(
         return predicted.cpu().numpy().astype(np.uint8)
 
 
-def load_model(model_path: str):
+def load_model(model_path: str, map_location=None):
     if os.path.isdir(model_path):
-        checkpoint_files = [f for f in os.listdir(model_path) if f.endswith(".ckpt")]
+        checkpoint_files = [f for f in os.listdir(model_path) if f.endswith(".pt")]
 
         if len(checkpoint_files) == 0:
             raise ValueError(f"No checkpoint files found in directory: {model_path}")
 
         model_path = os.path.join(model_path, checkpoint_files[0])
 
-    if "pixel_decoder" in model_path:
-        model = PixelwiseClassifier.load_from_checkpoint(checkpoint_path=model_path)
-    elif "cnn_decoder" in model_path:
-        model = CNNDecoder.load_from_checkpoint(checkpoint_path=model_path)
+    ckpt = torch.load(model_path, map_location=map_location)
+    model_type = ckpt.get("model_type")
+    model_kwargs = ckpt.get("model_kwargs", {})
+
+    if model_type == "pixel_decoder":
+        model = PixelwiseClassifier(**model_kwargs)
+    elif model_type == "cnn_decoder":
+        model = CNNDecoder(**model_kwargs)
     else:
         raise ValueError(
-            "Model path must contain 'pixel_decoder' or 'cnn_decoder' to identify model type."
+            "Checkpoint missing or has invalid 'model_type' (expected 'pixel_decoder' or 'cnn_decoder')."
         )
 
+    state_dict = ckpt.get("model_state_dict", {})
+    model.load_state_dict(state_dict)
+    model.colour_map = ckpt.get("colour_map")  # optional convenience for inference
     model.eval()
     return model
 

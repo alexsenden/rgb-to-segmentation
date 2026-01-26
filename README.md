@@ -6,7 +6,7 @@ A Python package for processing and cleaning segmentation images. This package p
 
 - **Palette-based Cleaning**: Clean noisy segmentation images by mapping pixels to the nearest colors in a predefined palette, with optional morphological operations to refine boundaries.
 - **Strict Palette Mapping**: Directly map RGB values to class indices with strict validation - throws an error if any pixel value is not in the colour map.
-- **Neural Network Refinement**: Use trained neural network models to refine segmentation masks using PyTorch Lightning:
+- **Neural Network Refinement**: Use trained neural network models to refine segmentation masks:
   - **Pixelwise Classifier**: MLP-based pixel-by-pixel classification
   - **CNN Decoder**: Convolutional encoder-decoder architecture for spatial context
 - **Flexible Input Types**: Accept both NumPy arrays and PyTorch tensors, with output type matching input type.
@@ -99,7 +99,7 @@ Options:
 - `--colour_map_file`: Path to a file listing RGB triples
 - `--model_type`: The type of model to train ('pixel_decoder' or 'cnn_decoder', default: pixel_decoder)
 
-Note that one label image may have multiple corresponding noisy masks. Labels are matched to noisy masks whose filenames contain the label file basename (pre-extension name, i.e. `my_image.png` -> `my_image`).
+Inputs and labels are paired by matching filenames that are identical before the "." (i.e. `my_image.noisy.png` and `my_image.target.png` would be paired).
 
 ## API
 

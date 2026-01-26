@@ -11,7 +11,8 @@ class PixelwiseClassifier(PixelClassifier):
 
     def __init__(self, input_dim, hidden_dim, output_dim):
         super().__init__(output_dim=output_dim)
-        self.save_hyperparameters()
+        self.input_dim = input_dim
+        self.hidden_dim = hidden_dim
 
         self.net = nn.Sequential(
             nn.Linear(input_dim, hidden_dim),
@@ -29,3 +30,14 @@ class PixelwiseClassifier(PixelClassifier):
 
     def batch_to_image(self, batch: torch.Tensor, height: int, width: int):
         return batch.reshape(1, height, width, 3).permute(0, 3, 1, 2)
+
+    @classmethod
+    def load_from_checkpoint(cls, checkpoint_path: str, map_location=None):
+        ckpt = torch.load(checkpoint_path, map_location=map_location)
+        model_kwargs = ckpt.get("model_kwargs", {})
+        model = cls(**model_kwargs)
+        state_dict = ckpt.get("model_state_dict", {})
+        model.load_state_dict(state_dict)
+        model.colour_map = ckpt.get("colour_map")  # optional convenience
+        model.eval()
+        return model
