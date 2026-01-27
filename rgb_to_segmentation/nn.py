@@ -54,7 +54,7 @@ def clean_image_nn(
 
 def load_model(model_path: str, map_location=None):
     if os.path.isdir(model_path):
-        checkpoint_files = [f for f in os.listdir(model_path) if f.endswith(".pt")]
+        checkpoint_files = [f for f in os.listdir(model_path) if f.endswith(".ckpt")]
 
         if len(checkpoint_files) == 0:
             raise ValueError(f"No checkpoint files found in directory: {model_path}")
