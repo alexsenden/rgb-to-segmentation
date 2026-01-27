@@ -5,7 +5,7 @@ A Python package for processing and cleaning segmentation images. This package p
 ## Features
 
 - **Palette-based Cleaning**: Clean noisy segmentation images by mapping pixels to the nearest colors in a predefined palette, with optional morphological operations to refine boundaries.
-- **Strict Palette Mapping**: Directly map RGB values to class indices with strict validation - throws an error if any pixel value is not in the colour map.
+- **Format Conversion**: Convert between RGB and index mask formats with strict validation using a colour map.
 - **Neural Network Refinement**: Use trained neural network models to refine segmentation masks:
   - **Pixelwise Classifier**: MLP-based pixel-by-pixel classification
   - **CNN Decoder**: Convolutional encoder-decoder architecture for spatial context
@@ -48,17 +48,11 @@ segment-clean --method palette --input_dir /path/to/input --output_dir /path/to/
 segment-clean --method nn --input_dir /path/to/input --output_dir /path/to/output --model_path /path/to/model.ckpt --colour_map "0,0,0;255,0,0;0,255,0" --output_type index
 ```
 
-#### Strict palette mapping:
-
-```bash
-segment-clean --method strict_palette --input_dir /path/to/input --output_dir /path/to/output --colour_map "0,0,0;255,0,0;0,255,0" --output_type index
-```
-
 You can also provide colours via file with `--colour_map_file /path/to/colours.txt` (one `r,g,b` per line). The CLI parses colours and constructs the palette/colour map internally, mirroring the Python API which accepts parsed structures (NumPy array for palette, dictionary for colour map).
 
 Options:
 
-- `--method`: Cleaning method ('palette', 'nn', or 'strict_palette')
+- `--method`: Cleaning method ('palette' or 'nn')
 - `--input_dir`: Path to input directory containing images
 - `--output_dir`: Directory where cleaned images will be written
 - `--inplace`: Overwrite input images in place
@@ -75,8 +69,6 @@ For palette method:
 For nn method (both pixelwise and CNN decoder models):
 
 - `--model_path`: Path to trained model file
-
-The strict_palette method requires no additional options beyond the common ones.
 
 ### Training the Neural Network Model
 
@@ -107,7 +99,7 @@ You can also use the package programmatically:
 
 ```python
 import numpy as np
-from rgb_to_segmentation import clean, nn, train, utils, clean_image
+from rgb_to_segmentation import clean, nn, train, utils, clean_image, convert_mask_format
 
 # Palette cleaning
 colours = utils.parse_colours_from_string("0,0,0;255,0,0;0,255,0")
@@ -140,12 +132,18 @@ rgb_out = clean_image(
 	output_type="rgb",
 )
 
-# Strict palette method (returns index mask, validates all pixels are in colour_map)
-index_out = clean_image(
+# Format conversion (RGB to index with strict validation)
+index_out = convert_mask_format(
 	image_array=np.zeros((512, 512, 3), dtype=np.uint8),
-	method="strict_palette",
 	colour_map=colour_map,
 	output_type="index",
+)
+
+# Format conversion (index to RGB)
+rgb_out = convert_mask_format(
+	image_array=np.zeros((512, 512), dtype=np.uint8),
+	colour_map=colour_map,
+	output_type="rgb",
 )
 
 # Pixel decoder method (returns index mask, works with pixelwise or CNN models)
@@ -171,7 +169,7 @@ import torch
 tensor_input = torch.zeros((512, 512, 3), dtype=torch.uint8)
 tensor_out = clean_image(
 	image_array=tensor_input,
-	method="strict_palette",
+	method="palette",
 	colour_map=colour_map,
 	output_type="rgb",
 )

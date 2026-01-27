@@ -3,7 +3,7 @@ import torch
 
 from typing import Dict, Tuple, Optional, Union
 
-from .clean import clean_image_palette, clean_image_strict_palette
+from .clean import clean_image_palette
 from .nn import clean_image_nn
 
 
@@ -56,7 +56,7 @@ def clean_image(
 
     Args:
         image_array: Array/Tensor of shape (H, W, 3), dtype uint8.
-        method: "palette", "strict_palette", "pixel_decoder", or "cnn_decoder" to choose cleaning approach.
+        method: "palette", "pixel_decoder", or "cnn_decoder" to choose cleaning approach.
         model: Required when method="pixel_decoder" or "cnn_decoder". A trained model with forward(batch) returning class probabilities.
         colour_map: Required for all methods. Dict mapping class index -> (r,g,b).
         morph_kernel_size: Optional morphological clean kernel size (palette method only).
@@ -86,13 +86,6 @@ def clean_image(
             output_type=output_type,
         )
 
-    elif method == "strict_palette":
-        cleaned = clean_image_strict_palette(
-            np_image,
-            colour_map=colour_map,
-            output_type=output_type,
-        )
-
     elif method in ["pixel_decoder", "cnn_decoder"]:
         if model is None:
             raise ValueError(
@@ -108,7 +101,94 @@ def clean_image(
 
     else:
         raise ValueError(
-            "method must be 'palette', 'strict_palette', 'pixel_decoder', or 'cnn_decoder'"
+            "method must be 'palette', 'pixel_decoder', or 'cnn_decoder'"
         )
 
     return _to_original_type(cleaned, is_torch, orig_dtype, orig_device)
+
+def convert_mask_format(
+    image_array: np.ndarray,
+    colour_map: Dict[int, Tuple[int, int, int]],
+    output_type: str = "rgb",
+) -> np.ndarray:
+    """
+    Convert between RGB and index mask formats using a colour map.
+    
+    Args:
+        image_array: Either (H, W, 3) uint8 RGB image or (H, W) index mask
+        colour_map: Dict mapping class index -> (r,g,b)
+        output_type: "rgb" to return colour image, "index" to return integer mask
+    
+    Returns:
+        np.ndarray: (H,W,3) uint8 if output_type='rgb'; else (H,W) uint8
+    
+    Raises:
+        ValueError: If image_array has invalid shape or contains unmapped RGB values
+    """
+    if output_type not in ("rgb", "index"):
+        raise ValueError("output_type must be 'rgb' or 'index'")
+    
+    # Check if input is RGB (H, W, 3) or index (H, W)
+    if image_array.ndim == 3 and image_array.shape[2] == 3:
+        # Input is RGB, convert to index
+        h, w, _ = image_array.shape
+        flat_img = image_array.reshape(-1, 3)
+        
+        # Build reverse lookup: RGB tuple -> class index
+        rgb_to_idx = {tuple(map(int, rgb)): idx for idx, rgb in colour_map.items()}
+        
+        # Find all unique RGB values in the image
+        unique_colours = np.unique(flat_img, axis=0)
+        
+        # Check if all colours are in the colour_map
+        unmapped_colours = []
+        for colour in unique_colours:
+            colour_tuple = tuple(map(int, colour))
+            if colour_tuple not in rgb_to_idx:
+                unmapped_colours.append(colour_tuple)
+        
+        if unmapped_colours:
+            # Format error message with unmapped colours
+            colour_strs = [f"RGB{c}" for c in unmapped_colours[:10]]  # Show first 10
+            if len(unmapped_colours) > 10:
+                colour_strs.append(f"... and {len(unmapped_colours) - 10} more")
+            raise ValueError(
+                f"Image contains {len(unmapped_colours)} RGB value(s) not in colour_map: "
+                f"{', '.join(colour_strs)}. All pixel values must exactly match a colour in the map."
+            )
+        
+        # Map each pixel to its class index
+        flat_indices = np.array(
+            [rgb_to_idx[tuple(map(int, px))] for px in flat_img], dtype=np.uint16
+        )
+        index_image = flat_indices.reshape(h, w).astype(np.uint8)
+        
+        if output_type == "index":
+            return index_image
+        else:
+            # Convert back to RGB (roundtrip)
+            rgb_output = np.zeros((h, w, 3), dtype=np.uint8)
+            for idx, rgb in colour_map.items():
+                mask = index_image == idx
+                rgb_output[mask] = rgb
+            return rgb_output
+    
+    elif image_array.ndim == 2:
+        # Input is index mask, convert to RGB or keep as index
+        h, w = image_array.shape
+        
+        if output_type == "index":
+            # Already in index format
+            return image_array.astype(np.uint8)
+        else:
+            # Convert to RGB
+            rgb_output = np.zeros((h, w, 3), dtype=np.uint8)
+            for idx, rgb in colour_map.items():
+                mask = image_array == idx
+                rgb_output[mask] = rgb
+            return rgb_output
+    
+    else:
+        raise ValueError(
+            "image_array must have shape (H, W, 3) for RGB or (H, W) for index mask"
+        )
